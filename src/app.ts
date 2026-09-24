@@ -5,6 +5,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { validateBody } from "./middleware/validate.js";
 import { TaskStore } from "./store/task-store.js";
 import type { CreateTaskInput, ReplaceTaskInput } from "./types/task.js";
+import { taskQuerySchema } from "./validation/task-query-schemas.js";
 import { createTaskSchema, replaceTaskSchema } from "./validation/task-schemas.js";
 
 export function createApp(store = new TaskStore()): Express {
@@ -16,8 +17,29 @@ export function createApp(store = new TaskStore()): Express {
     response.status(200).json({ status: "ok" });
   });
 
-  app.get("/tasks", (_request, response) => {
-    response.status(200).json(store.list());
+  app.get("/tasks", (request, response, next) => {
+    const query = request.query;
+
+    if (!Object.hasOwn(query, "page") && !Object.hasOwn(query, "limit")) {
+      response.status(200).json(store.list());
+      return;
+    }
+
+    const result = taskQuerySchema.safeParse(query);
+
+    if (!result.success) {
+      next(
+        new HttpError(
+          400,
+          "VALIDATION_ERROR",
+          "Request query validation failed",
+          result.error.flatten(),
+        ),
+      );
+      return;
+    }
+
+    response.status(200).json(store.listPage(result.data));
   });
 
   app.get("/tasks/:id", (request, response, next) => {

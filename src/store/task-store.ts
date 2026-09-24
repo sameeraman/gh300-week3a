@@ -1,12 +1,31 @@
 import { randomUUID } from "node:crypto";
 
-import type { CreateTaskInput, ReplaceTaskInput, Task } from "../types/task.js";
+import type {
+  CreateTaskInput,
+  ReplaceTaskInput,
+  Task,
+  TaskPage,
+  TaskPaginationOptions,
+} from "../types/task.js";
 
 export class TaskStore {
   private readonly tasks: Task[] = [];
 
   list(): Task[] {
     return this.tasks.map((task) => ({ ...task }));
+  }
+
+  listPage({ page, limit }: TaskPaginationOptions): TaskPage {
+    const total = this.tasks.length;
+    const totalPages = Math.ceil(total / limit);
+
+    if (page > totalPages) {
+      return { items: [], page, limit, total, totalPages };
+    }
+
+    const offset = (page - 1) * limit;
+    const items = this.tasks.slice(offset, offset + limit).map((task) => ({ ...task }));
+    return { items, page, limit, total, totalPages };
   }
 
   getById(id: string): Task | undefined {
